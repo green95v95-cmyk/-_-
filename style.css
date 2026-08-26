@@ -1,33 +1,39 @@
 :root {
   color-scheme: light;
-  --surface-1:      #fcfcfb;
-  --page-plane:     #f9f9f7;
-  --text-primary:   #0b0b0b;
-  --text-secondary: #52514e;
-  --text-muted:     #898781;
-  --gridline:       #e1e0d9;
-  --baseline:       #c3c2b7;
-  --border:         rgba(11,11,11,0.10);
-  --accent:         #2a78d6;
-  --accent-dark:    #184f95;
-  --danger:         #d03b3b;
-  --seq-100:        #cde2fb;
-  --seq-700:        #0d366b;
+  --surface-1:      #ffffff;
+  --page-plane:     #f4f3f5;
+  --text-primary:   #231f20;
+  --text-secondary: #5b5860;
+  --text-muted:     #918e94;
+  --gridline:       #e7e5e8;
+  --baseline:       #cfccd1;
+  --border:         rgba(41,48,62,0.12);
+  --graphite:       #29303e;
+  --bilberry:       #951b81;
+  --bilberry-dark:  #6e1360;
+  --accent:         #951b81;
+  --accent-dark:    #6e1360;
+  --brand-gradient: linear-gradient(90deg, #831f82 0%, #c7017f 60%, #e30613 100%);
+  --danger:         #c8302f;
+  --seq-100:        #f3dcee;
+  --seq-700:        #4a0e40;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
-    --surface-1:      #1a1a19;
-    --page-plane:     #0d0d0d;
-    --text-primary:   #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted:     #898781;
-    --gridline:       #2c2c2a;
-    --baseline:       #383835;
-    --border:         rgba(255,255,255,0.10);
-    --accent:         #3987e5;
-    --accent-dark:    #1c5cab;
+    --surface-1:      #1e2128;
+    --page-plane:     #15171c;
+    --text-primary:   #f4f3f5;
+    --text-secondary: #c3c1c6;
+    --text-muted:     #918e94;
+    --gridline:       #33363f;
+    --baseline:       #454852;
+    --border:         rgba(244,243,245,0.12);
+    --graphite:       #29303e;
+    --bilberry:       #d64fbd;
+    --accent:         #d64fbd;
+    --accent-dark:    #ea7fd6;
     --danger:         #e66767;
   }
 }
@@ -38,8 +44,25 @@ body {
   margin: 0;
   background: var(--page-plane);
   color: var(--text-primary);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+
+.brandbar {
+  background: var(--graphite);
+  padding: 10px 20px;
+  border-bottom: 3px solid transparent;
+  border-image: var(--brand-gradient) 1;
+}
+.brandbar-mark {
+  display: block;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: #ffffff;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  font-weight: 400;
+}
+.brandbar-mark b { font-weight: 800; }
 
 .page {
   max-width: 1200px;
@@ -59,7 +82,11 @@ body {
 h1 {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 800;
+  color: var(--graphite);
+}
+@media (prefers-color-scheme: dark) {
+  h1 { color: var(--text-primary); }
 }
 
 .subtitle {
@@ -133,7 +160,7 @@ h1 {
   cursor: pointer;
 }
 .seg-btn.is-active {
-  background: var(--accent);
+  background: var(--brand-gradient);
   color: #ffffff;
 }
 

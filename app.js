@@ -1,7 +1,8 @@
 const SHEET_ID = '1iy4TBiLVl9qkmMyYdf7KvcJ4WyCmXzpxFJ2ddUO-JXc';
 const GID = '1027075125';
 // D = project_name, AG = calendar_month, AD = full_area (ОРП), AF = plan_labor_costs (Плановые ТРЗ)
-const QUERY = 'select D,AG,sum(AD),sum(AF) where D is not null and AG is not null group by D,AG order by D,AG';
+// Excludes "УПД: Внепроект ДГП БКП СПБ" and floors the range at January 2026 per project scope.
+const QUERY = "select D,AG,sum(AD),sum(AF) where D is not null and D <> 'УПД: Внепроект ДГП БКП СПБ' and AG is not null and AG >= date '2026-01-01' group by D,AG order by D,AG";
 const AUTO_REFRESH_MS = 10 * 60 * 1000; // 10 minutes
 
 const MONTH_NAMES = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -18,7 +19,6 @@ const state = {
 const els = {
   status: document.getElementById('status'),
   refreshBtn: document.getElementById('refreshBtn'),
-  retryBtn: document.getElementById('retryBtn'),
   errorBox: document.getElementById('errorBox'),
   errorText: document.getElementById('errorText'),
   content: document.getElementById('content'),
@@ -104,8 +104,8 @@ function hexToRgb(hex) {
 }
 
 function sequentialColor(t) {
-  const c0 = hexToRgb('#cde2fb');
-  const c1 = hexToRgb('#0d366b');
+  const c0 = hexToRgb('#f3dcee');
+  const c1 = hexToRgb('#4a0e40');
   const r = Math.round(lerp(c0[0], c1[0], t));
   const g = Math.round(lerp(c0[1], c1[1], t));
   const b = Math.round(lerp(c0[2], c1[2], t));
@@ -272,7 +272,6 @@ els.dataTable.querySelector('thead').addEventListener('click', (e) => {
 });
 
 els.refreshBtn.addEventListener('click', () => loadData());
-els.retryBtn.addEventListener('click', () => loadData());
 
 loadData();
 setInterval(() => loadData({ silent: true }), AUTO_REFRESH_MS);
