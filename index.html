@@ -34,8 +34,8 @@
 
     <section class="controls">
       <div class="segmented" id="metricToggle" role="tablist" aria-label="Метрика">
-        <button class="seg-btn is-active" data-metric="area" role="tab" aria-selected="true">ОРП, м²</button>
-        <button class="seg-btn" data-metric="labor" role="tab" aria-selected="false">Плановые ТРЗ, ч</button>
+        <button class="seg-btn is-active" data-metric="labor" role="tab" aria-selected="true">Плановые ТРЗ, ч</button>
+        <button class="seg-btn" data-metric="area" role="tab" aria-selected="false">ОРП, м²</button>
       </div>
       <div class="search-wrap">
         <input id="searchInput" type="search" placeholder="Поиск по проекту…" aria-label="Поиск по проекту">
@@ -44,11 +44,21 @@
 
     <section class="panel">
       <div class="panel-head">
-        <h2 id="heatmapTitle">ОРП, м² — по проектам и месяцам</h2>
+        <h2 id="heatmapTitle">Плановые ТРЗ, ч — по проектам и месяцам</h2>
         <div class="legend" id="legend"></div>
       </div>
       <div class="table-scroll">
         <table class="heatmap" id="heatmapTable"></table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="qyTitle">Плановые ТРЗ, ч — по кварталам и годам</h2>
+        <div class="legend" id="qyLegend"></div>
+      </div>
+      <div class="table-scroll">
+        <table class="heatmap" id="qyTable"></table>
       </div>
     </section>
 

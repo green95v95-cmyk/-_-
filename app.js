@@ -8,10 +8,13 @@ const AUTO_REFRESH_MS = 10 * 60 * 1000; // 10 minutes
 const MONTH_NAMES = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
 const state = {
-  metric: 'area', // 'area' | 'labor'
+  metric: 'labor', // 'area' | 'labor'
   records: [],    // [{project, monthKey, monthLabel, area, labor}]
   projects: [],
-  months: [],     // [{key, label}]
+  months: [],       // [{key, label}]
+  monthValues: new Map(),  // "project||monthKey" -> {area, labor}
+  qyPeriods: [],    // [{key, label, type: 'quarter'|'year'}]
+  qyValues: new Map(),      // "project||periodKey" -> {area, labor}
   sort: { key: 'project', dir: 1 },
   search: '',
 };
@@ -27,6 +30,9 @@ const els = {
   heatmapTitle: document.getElementById('heatmapTitle'),
   heatmapTable: document.getElementById('heatmapTable'),
   legend: document.getElementById('legend'),
+  qyTitle: document.getElementById('qyTitle'),
+  qyTable: document.getElementById('qyTable'),
+  qyLegend: document.getElementById('qyLegend'),
   dataTable: document.getElementById('dataTable'),
   dataTableBody: document.getElementById('dataTableBody'),
 };
@@ -65,6 +71,7 @@ function buildRecords(table) {
   const records = [];
   const projectSet = new Set();
   const monthMap = new Map();
+  const monthValues = new Map();
 
   for (const row of table.rows || []) {
     const c = row.c || [];
@@ -81,6 +88,7 @@ function buildRecords(table) {
     records.push({ project, monthKey, monthLabel, area, labor });
     projectSet.add(project);
     if (!monthMap.has(monthKey)) monthMap.set(monthKey, monthLabel);
+    monthValues.set(project + '||' + monthKey, { area, labor });
   }
 
   const projects = Array.from(projectSet).sort((a, b) => a.localeCompare(b, 'ru'));
@@ -88,7 +96,39 @@ function buildRecords(table) {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, label]) => ({ key, label }));
 
-  return { records, projects, months };
+  return { records, projects, months, monthValues };
+}
+
+function addValue(map, key, area, labor) {
+  const cur = map.get(key) || { area: 0, labor: 0 };
+  cur.area += area;
+  cur.labor += labor;
+  map.set(key, cur);
+}
+
+function buildQuarterYearAggregation(records) {
+  const years = new Set();
+  for (const r of records) years.add(Number(r.monthKey.slice(0, 4)));
+  const sortedYears = Array.from(years).sort((a, b) => a - b);
+
+  const periods = [];
+  for (const y of sortedYears) {
+    for (let q = 1; q <= 4; q++) {
+      periods.push({ key: y + '-Q' + q, label: q + ' кв ' + y, type: 'quarter' });
+    }
+    periods.push({ key: y + '-Y', label: String(y), type: 'year' });
+  }
+
+  const values = new Map();
+  for (const r of records) {
+    const year = Number(r.monthKey.slice(0, 4));
+    const month = Number(r.monthKey.slice(5, 7));
+    const quarter = Math.ceil(month / 3);
+    addValue(values, r.project + '||' + year + '-Q' + quarter, r.area, r.labor);
+    addValue(values, r.project + '||' + year + '-Y', r.area, r.labor);
+  }
+
+  return { periods, values };
 }
 
 function formatNumber(n) {
@@ -116,36 +156,27 @@ function textColorFor(t) {
   return t > 0.55 ? '#ffffff' : '#0b0b0b';
 }
 
-function renderLegend(min, max) {
-  els.legend.innerHTML = `
-    <span>${formatNumber(min)}</span>
-    <span class="legend-bar"></span>
-    <span>${formatNumber(max)}</span>
-  `;
+function metricLabel(metricKey) {
+  return metricKey === 'area' ? 'ОРП, м²' : 'Плановые ТРЗ, ч';
 }
 
-function renderHeatmap() {
-  const metricKey = state.metric;
-  els.heatmapTitle.textContent = (metricKey === 'area' ? 'ОРП, м²' : 'Плановые ТРЗ, ч') + ' — по проектам и месяцам';
-
-  const filteredProjects = state.projects.filter(p =>
-    p.toLowerCase().includes(state.search.toLowerCase())
-  );
-
-  const valueMap = new Map();
+function renderGrid(tableEl, legendEl, periods, valueMap, metricKey, filteredProjects) {
   let max = 0;
-  for (const r of state.records) {
-    valueMap.set(r.project + '||' + r.monthKey, r[metricKey]);
-    if (r[metricKey] > max) max = r[metricKey];
+  for (const project of filteredProjects) {
+    for (const period of periods) {
+      const entry = valueMap.get(project + '||' + period.key);
+      if (entry && entry[metricKey] > max) max = entry[metricKey];
+    }
   }
   if (max === 0) max = 1;
 
   const thead = document.createElement('thead');
   const headRow = document.createElement('tr');
   headRow.appendChild(document.createElement('th')).textContent = 'Проект';
-  for (const m of state.months) {
+  for (const period of periods) {
     const th = document.createElement('th');
-    th.textContent = m.label;
+    th.textContent = period.label;
+    if (period.type === 'year') th.classList.add('period-year');
     headRow.appendChild(th);
   }
   thead.appendChild(headRow);
@@ -156,15 +187,17 @@ function renderHeatmap() {
     const th = document.createElement('th');
     th.textContent = project;
     tr.appendChild(th);
-    for (const m of state.months) {
+    for (const period of periods) {
       const td = document.createElement('td');
-      const val = valueMap.get(project + '||' + m.key);
-      if (val === undefined) {
-        td.className = 'empty';
+      if (period.type === 'year') td.classList.add('period-year');
+      const entry = valueMap.get(project + '||' + period.key);
+      const val = entry ? entry[metricKey] : undefined;
+      if (!val) {
+        td.classList.add('empty');
         td.textContent = '—';
       } else {
         const t = val / max;
-        td.className = 'cell';
+        td.classList.add('cell');
         td.style.background = sequentialColor(t);
         td.style.color = textColorFor(t);
         td.textContent = formatNumber(val);
@@ -174,11 +207,37 @@ function renderHeatmap() {
     tbody.appendChild(tr);
   }
 
-  els.heatmapTable.innerHTML = '';
-  els.heatmapTable.appendChild(thead);
-  els.heatmapTable.appendChild(tbody);
+  tableEl.innerHTML = '';
+  tableEl.appendChild(thead);
+  tableEl.appendChild(tbody);
 
-  renderLegend(0, max);
+  legendEl.innerHTML = `
+    <span>${formatNumber(0)}</span>
+    <span class="legend-bar"></span>
+    <span>${formatNumber(max)}</span>
+  `;
+}
+
+function renderHeatmap() {
+  const metricKey = state.metric;
+  els.heatmapTitle.textContent = metricLabel(metricKey) + ' — по проектам и месяцам';
+
+  const filteredProjects = state.projects.filter(p =>
+    p.toLowerCase().includes(state.search.toLowerCase())
+  );
+
+  renderGrid(els.heatmapTable, els.legend, state.months, state.monthValues, metricKey, filteredProjects);
+}
+
+function renderQuarterYear() {
+  const metricKey = state.metric;
+  els.qyTitle.textContent = metricLabel(metricKey) + ' — по кварталам и годам';
+
+  const filteredProjects = state.projects.filter(p =>
+    p.toLowerCase().includes(state.search.toLowerCase())
+  );
+
+  renderGrid(els.qyTable, els.qyLegend, state.qyPeriods, state.qyValues, metricKey, filteredProjects);
 }
 
 function renderDataTable() {
@@ -214,6 +273,7 @@ function renderDataTable() {
 
 function renderAll() {
   renderHeatmap();
+  renderQuarterYear();
   renderDataTable();
 }
 
@@ -226,10 +286,14 @@ async function loadData({ silent } = {}) {
   els.errorBox.hidden = true;
   try {
     const table = await fetchTable();
-    const { records, projects, months } = buildRecords(table);
+    const { records, projects, months, monthValues } = buildRecords(table);
+    const { periods, values } = buildQuarterYearAggregation(records);
     state.records = records;
     state.projects = projects;
     state.months = months;
+    state.monthValues = monthValues;
+    state.qyPeriods = periods;
+    state.qyValues = values;
     els.content.hidden = false;
     renderAll();
     setStatus('Обновлено: ' + new Date().toLocaleTimeString('ru-RU'));
@@ -251,6 +315,7 @@ els.metricToggle.addEventListener('click', (e) => {
     b.setAttribute('aria-selected', active ? 'true' : 'false');
   });
   renderHeatmap();
+  renderQuarterYear();
 });
 
 els.searchInput.addEventListener('input', (e) => {

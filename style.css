@@ -253,6 +253,14 @@ table.heatmap td.empty {
   background: var(--page-plane);
   color: var(--text-muted);
 }
+table.heatmap th.period-year {
+  font-weight: 800;
+}
+table.heatmap td.period-year {
+  border-left: 2px solid var(--baseline);
+  border-right: 2px solid var(--baseline);
+  font-weight: 700;
+}
 
 table.data-table {
   border-collapse: collapse;
