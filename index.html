@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Дашборд проектов — ОРП и Плановые ТРЗ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <div class="top-left">
+      <h1>Дашборд проектов</h1>
+      <p class="subtitle">Распределение ОРП и Плановых ТРЗ по проектам и месяцам</p>
+    </div>
+    <div class="top-right">
+      <span id="status" class="status">Загрузка…</span>
+      <button id="refreshBtn" class="btn">Обновить</button>
+    </div>
+  </header>
+
+  <div id="errorBox" class="error-box" hidden>
+    <p id="errorText"></p>
+    <button id="retryBtn" class="btn">Повторить</button>
+  </div>
+
+  <main id="content" hidden>
+
+    <section class="controls">
+      <div class="segmented" id="metricToggle" role="tablist" aria-label="Метрика">
+        <button class="seg-btn is-active" data-metric="area" role="tab" aria-selected="true">ОРП, м²</button>
+        <button class="seg-btn" data-metric="labor" role="tab" aria-selected="false">Плановые ТРЗ, ч</button>
+      </div>
+      <div class="search-wrap">
+        <input id="searchInput" type="search" placeholder="Поиск по проекту…" aria-label="Поиск по проекту">
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2 id="heatmapTitle">ОРП, м² — по проектам и месяцам</h2>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="table-scroll">
+        <table class="heatmap" id="heatmapTable"></table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Таблица данных</h2>
+      </div>
+      <div class="table-scroll">
+        <table class="data-table" id="dataTable">
+          <thead>
+            <tr>
+              <th data-key="project" class="sortable">Проект</th>
+              <th data-key="month" class="sortable">Месяц</th>
+              <th data-key="area" class="sortable num">ОРП, м²</th>
+              <th data-key="labor" class="sortable num">Плановые ТРЗ, ч</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
