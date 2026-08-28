@@ -64,48 +64,121 @@ function prefersReducedMotion() {
   return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+function makeLeatherTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#333a4a';
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const shade = Math.random() * 26 - 13;
+    const a = 0.10 + Math.random() * 0.18;
+    ctx.fillStyle = `rgba(${18 + shade},${22 + shade},${30 + shade},${a})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 0.5 + Math.random() * 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2.2, 1.4);
+  return tex;
+}
+
 function runBriefcaseBurst() {
   if (typeof THREE === 'undefined' || prefersReducedMotion()) {
     els.papersScroll.classList.add('is-open');
     return;
   }
 
+  let renderer;
+  try {
+    renderer = new THREE.WebGLRenderer({ canvas: els.burstCanvas, antialias: true, alpha: true });
+  } catch (e) {
+    els.papersScroll.classList.add('is-open');
+    return;
+  }
+
   const overlay = els.burstOverlay;
-  const canvas = els.burstCanvas;
   overlay.hidden = false;
   document.body.style.overflow = 'hidden';
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 0.5, 5.5);
+  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0.3, 0.7, 5.6);
   camera.lookAt(0, 0, 0);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const key = new THREE.DirectionalLight(0xffffff, 1.15);
-  key.position.set(3, 4, 5);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const key = new THREE.DirectionalLight(0xfff3ea, 1.3);
+  key.position.set(3, 4.5, 4);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.camera.near = 1;
+  key.shadow.camera.far = 12;
+  key.shadow.camera.left = -3;
+  key.shadow.camera.right = 3;
+  key.shadow.camera.top = 3;
+  key.shadow.camera.bottom = -3;
+  key.shadow.radius = 3;
   scene.add(key);
-  const rim = new THREE.PointLight(0xc7017f, 2.2, 20);
+  const fill = new THREE.DirectionalLight(0x9fb0d8, 0.35);
+  fill.position.set(-3, 1, 3);
+  scene.add(fill);
+  const rim = new THREE.PointLight(0xc7017f, 2.4, 20);
   rim.position.set(-3, -1, 2.5);
   scene.add(rim);
 
-  const group = new THREE.Group();
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.35 }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.92;
+  ground.receiveShadow = true;
+  scene.add(ground);
 
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x29303e, roughness: 0.45, metalness: 0.35 });
-  group.add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 0.55), bodyMat));
+  const group = new THREE.Group();
+  const leatherTex = makeLeatherTexture();
+
+  const bodyMat = new THREE.MeshStandardMaterial({ map: leatherTex, roughness: 0.62, metalness: 0.08 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 0.55), bodyMat);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  group.add(body);
+
+  // Bevel illusion: slim brighter trim tracing the top and front edges
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x4a5468, roughness: 0.4, metalness: 0.15 });
+  const trimTop = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.04, 0.56), trimMat);
+  trimTop.position.set(0, 0.7, 0);
+  group.add(trimTop);
+  const trimFront = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 0.02), trimMat);
+  trimFront.position.set(0, 0, 0.285);
+  group.add(trimFront);
+
+  // Seam line where the lid would open — also doubles as the "burst origin" mark
+  const seamMat = new THREE.MeshStandardMaterial({ color: 0x14161c, roughness: 0.8, metalness: 0 });
+  const seam = new THREE.Mesh(new THREE.BoxGeometry(2.16, 0.02, 0.58), seamMat);
+  seam.position.set(0, 0.05, 0);
+  group.add(seam);
 
   const stripeMat = new THREE.MeshStandardMaterial({ color: 0xc7017f, roughness: 0.3, metalness: 0.2, emissive: 0x831f82, emissiveIntensity: 0.4 });
-  group.add(new THREE.Mesh(new THREE.BoxGeometry(2.24, 0.14, 0.58), stripeMat));
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.24, 0.14, 0.58), stripeMat);
+  stripe.position.set(0, -0.35, 0);
+  group.add(stripe);
 
-  const claspMat = new THREE.MeshStandardMaterial({ color: 0xe30613, roughness: 0.25, metalness: 0.6 });
-  group.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.62), claspMat));
+  const claspMat = new THREE.MeshStandardMaterial({ color: 0xe8b23a, roughness: 0.3, metalness: 0.8 });
+  const clasp = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.62), claspMat);
+  clasp.position.set(0, 0.05, 0);
+  clasp.castShadow = true;
+  group.add(clasp);
 
-  const handleMat = new THREE.MeshStandardMaterial({ color: 0x1c212b, roughness: 0.4, metalness: 0.3 });
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0x1c212b, roughness: 0.5, metalness: 0.25 });
   const handleBar = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.09, 0.09), handleMat);
   handleBar.position.set(0, 0.95, 0);
+  handleBar.castShadow = true;
   group.add(handleBar);
   const handlePostL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.3, 0.09), handleMat);
   handlePostL.position.set(-0.32, 0.78, 0);
@@ -116,33 +189,50 @@ function runBriefcaseBurst() {
 
   scene.add(group);
 
-  const PARTICLE_COUNT = 26;
-  const particleGeo = new THREE.IcosahedronGeometry(0.07, 0);
-  const particles = [];
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    const mat = new THREE.MeshStandardMaterial({
-      color: i % 2 === 0 ? 0xc7017f : 0xe30613,
-      roughness: 0.4,
-      metalness: 0.3,
-      transparent: true,
-    });
-    const mesh = new THREE.Mesh(particleGeo, mat);
-    mesh.visible = false;
+  // Debris: some fly out as paper-like sheets (the literal "papers falling out"),
+  // the rest as small glinting shards for sparkle.
+  const PAPER_COUNT = 11;
+  const SPARK_COUNT = 16;
+  const paperGeo = new THREE.BoxGeometry(0.34, 0.44, 0.008);
+  const sparkGeo = new THREE.IcosahedronGeometry(0.06, 0);
+  const debris = [];
+
+  function launchFrom(mesh, spreadZ) {
     const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(Math.random() * 2 - 1);
-    const speed = 2.2 + Math.random() * 2.4;
+    const upBias = 0.4 + Math.random() * 0.6;
+    const speed = 1.8 + Math.random() * 2.6;
     mesh.userData.vel = new THREE.Vector3(
-      Math.sin(phi) * Math.cos(theta),
-      Math.sin(phi) * Math.sin(theta),
-      Math.cos(phi) * 0.6
-    ).multiplyScalar(speed);
-    mesh.userData.rotVel = new THREE.Vector3(Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3);
-    scene.add(mesh);
-    particles.push(mesh);
+      Math.cos(theta) * speed,
+      upBias * speed,
+      (Math.random() * 2 - 1) * spreadZ
+    );
+    mesh.userData.gravity = -3.2;
+    mesh.userData.rotVel = new THREE.Vector3(Math.random() * 8 - 4, Math.random() * 8 - 4, Math.random() * 8 - 4);
   }
 
-  const CHARGE_MS = 900;
-  const BURST_MS = 900;
+  for (let i = 0; i < PAPER_COUNT; i++) {
+    const mat = new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 0.9, metalness: 0, transparent: true, side: THREE.DoubleSide });
+    const mesh = new THREE.Mesh(paperGeo, mat);
+    mesh.visible = false;
+    launchFrom(mesh, 1.2);
+    mesh.castShadow = true;
+    scene.add(mesh);
+    debris.push(mesh);
+  }
+  for (let i = 0; i < SPARK_COUNT; i++) {
+    const mat = new THREE.MeshStandardMaterial({
+      color: i % 2 === 0 ? 0xc7017f : 0xe30613,
+      roughness: 0.35, metalness: 0.4, transparent: true,
+    });
+    const mesh = new THREE.Mesh(sparkGeo, mat);
+    mesh.visible = false;
+    launchFrom(mesh, 1.6);
+    scene.add(mesh);
+    debris.push(mesh);
+  }
+
+  const CHARGE_MS = 950;
+  const BURST_MS = 1000;
   const TOTAL_MS = CHARGE_MS + BURST_MS;
   let start = null;
   let burstTriggered = false;
@@ -165,28 +255,31 @@ function runBriefcaseBurst() {
       group.scale.setScalar(1 + p * 0.12 + wobble);
       group.rotation.y = Math.sin(p * Math.PI * 3) * 0.15 * p;
       group.rotation.z = Math.cos(p * Math.PI * 4) * 0.05 * p;
-      rim.intensity = 2.2 + p * 3;
+      rim.intensity = 2.4 + p * 3;
     } else {
       if (!burstTriggered) {
         burstTriggered = true;
         group.visible = false;
-        particles.forEach(m => {
+        ground.visible = false;
+        debris.forEach(m => {
           m.visible = true;
-          m.position.set(0, 0, 0);
+          m.position.set(0, 0.05, 0);
           m.material.opacity = 1;
         });
         els.papersScroll.classList.add('is-open');
       }
       const bp = Math.min(1, (elapsed - CHARGE_MS) / BURST_MS);
       const dt = 0.016;
-      particles.forEach(m => {
+      debris.forEach(m => {
+        m.userData.vel.y += m.userData.gravity * dt;
         m.position.addScaledVector(m.userData.vel, dt);
-        m.userData.vel.multiplyScalar(0.985);
+        m.userData.vel.multiplyScalar(0.99);
         m.rotation.x += m.userData.rotVel.x * dt;
         m.rotation.y += m.userData.rotVel.y * dt;
-        m.material.opacity = Math.max(0, 1 - bp * 1.15);
+        m.rotation.z += m.userData.rotVel.z * dt;
+        m.material.opacity = Math.max(0, 1 - bp * 1.1);
       });
-      rim.intensity = Math.max(0, 5.2 * (1 - bp));
+      rim.intensity = Math.max(0, 5.4 * (1 - bp));
     }
 
     renderer.render(scene, camera);
@@ -207,10 +300,12 @@ function runBriefcaseBurst() {
       document.body.style.overflow = '';
       cancelAnimationFrame(rafId);
       renderer.dispose();
-      particleGeo.dispose();
+      paperGeo.dispose();
+      sparkGeo.dispose();
+      leatherTex.dispose();
       scene.traverse(obj => {
         if (obj.material) obj.material.dispose();
-        if (obj.geometry && obj.geometry !== particleGeo) obj.geometry.dispose();
+        if (obj.geometry && obj.geometry !== paperGeo && obj.geometry !== sparkGeo) obj.geometry.dispose();
       });
     }, 500);
   }
