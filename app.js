@@ -39,7 +39,8 @@ const els = {
   qyTable: document.getElementById('qyTable'),
   qyLegend: document.getElementById('qyLegend'),
   yearTabs: document.getElementById('yearTabs'),
-  briefcase: document.getElementById('briefcase'),
+  burstOverlay: document.getElementById('burstOverlay'),
+  burstCanvas: document.getElementById('burstCanvas'),
   papersScroll: document.getElementById('papersScroll'),
   trendWrap: document.getElementById('trendWrap'),
   dataTable: document.getElementById('dataTable'),
@@ -56,10 +57,165 @@ let pendingBriefcaseArm = false;
 
 function armBriefcase() {
   if (!splashGone) { pendingBriefcaseArm = true; return; }
-  if (els.briefcase) els.briefcase.classList.add('is-armed');
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => els.papersScroll.classList.add('is-open'));
-  });
+  runBriefcaseBurst();
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function runBriefcaseBurst() {
+  if (typeof THREE === 'undefined' || prefersReducedMotion()) {
+    els.papersScroll.classList.add('is-open');
+    return;
+  }
+
+  const overlay = els.burstOverlay;
+  const canvas = els.burstCanvas;
+  overlay.hidden = false;
+  document.body.style.overflow = 'hidden';
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 0.5, 5.5);
+  camera.lookAt(0, 0, 0);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const key = new THREE.DirectionalLight(0xffffff, 1.15);
+  key.position.set(3, 4, 5);
+  scene.add(key);
+  const rim = new THREE.PointLight(0xc7017f, 2.2, 20);
+  rim.position.set(-3, -1, 2.5);
+  scene.add(rim);
+
+  const group = new THREE.Group();
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x29303e, roughness: 0.45, metalness: 0.35 });
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 0.55), bodyMat));
+
+  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xc7017f, roughness: 0.3, metalness: 0.2, emissive: 0x831f82, emissiveIntensity: 0.4 });
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(2.24, 0.14, 0.58), stripeMat));
+
+  const claspMat = new THREE.MeshStandardMaterial({ color: 0xe30613, roughness: 0.25, metalness: 0.6 });
+  group.add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.62), claspMat));
+
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0x1c212b, roughness: 0.4, metalness: 0.3 });
+  const handleBar = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.09, 0.09), handleMat);
+  handleBar.position.set(0, 0.95, 0);
+  group.add(handleBar);
+  const handlePostL = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.3, 0.09), handleMat);
+  handlePostL.position.set(-0.32, 0.78, 0);
+  group.add(handlePostL);
+  const handlePostR = handlePostL.clone();
+  handlePostR.position.set(0.32, 0.78, 0);
+  group.add(handlePostR);
+
+  scene.add(group);
+
+  const PARTICLE_COUNT = 26;
+  const particleGeo = new THREE.IcosahedronGeometry(0.07, 0);
+  const particles = [];
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const mat = new THREE.MeshStandardMaterial({
+      color: i % 2 === 0 ? 0xc7017f : 0xe30613,
+      roughness: 0.4,
+      metalness: 0.3,
+      transparent: true,
+    });
+    const mesh = new THREE.Mesh(particleGeo, mat);
+    mesh.visible = false;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(Math.random() * 2 - 1);
+    const speed = 2.2 + Math.random() * 2.4;
+    mesh.userData.vel = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta),
+      Math.sin(phi) * Math.sin(theta),
+      Math.cos(phi) * 0.6
+    ).multiplyScalar(speed);
+    mesh.userData.rotVel = new THREE.Vector3(Math.random() * 6 - 3, Math.random() * 6 - 3, Math.random() * 6 - 3);
+    scene.add(mesh);
+    particles.push(mesh);
+  }
+
+  const CHARGE_MS = 900;
+  const BURST_MS = 900;
+  const TOTAL_MS = CHARGE_MS + BURST_MS;
+  let start = null;
+  let burstTriggered = false;
+  let rafId;
+
+  function onResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+  window.addEventListener('resize', onResize);
+
+  function tick(ts) {
+    if (start === null) start = ts;
+    const elapsed = ts - start;
+
+    if (elapsed < CHARGE_MS) {
+      const p = elapsed / CHARGE_MS;
+      const wobble = Math.sin(p * Math.PI * 5) * 0.05 * p;
+      group.scale.setScalar(1 + p * 0.12 + wobble);
+      group.rotation.y = Math.sin(p * Math.PI * 3) * 0.15 * p;
+      group.rotation.z = Math.cos(p * Math.PI * 4) * 0.05 * p;
+      rim.intensity = 2.2 + p * 3;
+    } else {
+      if (!burstTriggered) {
+        burstTriggered = true;
+        group.visible = false;
+        particles.forEach(m => {
+          m.visible = true;
+          m.position.set(0, 0, 0);
+          m.material.opacity = 1;
+        });
+        els.papersScroll.classList.add('is-open');
+      }
+      const bp = Math.min(1, (elapsed - CHARGE_MS) / BURST_MS);
+      const dt = 0.016;
+      particles.forEach(m => {
+        m.position.addScaledVector(m.userData.vel, dt);
+        m.userData.vel.multiplyScalar(0.985);
+        m.rotation.x += m.userData.rotVel.x * dt;
+        m.rotation.y += m.userData.rotVel.y * dt;
+        m.material.opacity = Math.max(0, 1 - bp * 1.15);
+      });
+      rim.intensity = Math.max(0, 5.2 * (1 - bp));
+    }
+
+    renderer.render(scene, camera);
+
+    if (elapsed < TOTAL_MS) {
+      rafId = requestAnimationFrame(tick);
+    } else {
+      finish();
+    }
+  }
+
+  function finish() {
+    window.removeEventListener('resize', onResize);
+    overlay.classList.add('is-fading');
+    setTimeout(() => {
+      overlay.hidden = true;
+      overlay.classList.remove('is-fading');
+      document.body.style.overflow = '';
+      cancelAnimationFrame(rafId);
+      renderer.dispose();
+      particleGeo.dispose();
+      scene.traverse(obj => {
+        if (obj.material) obj.material.dispose();
+        if (obj.geometry && obj.geometry !== particleGeo) obj.geometry.dispose();
+      });
+    }, 500);
+  }
+
+  rafId = requestAnimationFrame(tick);
 }
 
 function maybeHideSplash() {
@@ -333,11 +489,21 @@ function renderBriefcase() {
       const slot = document.createElement('div');
       slot.className = 'paper-slot';
       slot.dataset.project = project;
-      slot.style.transitionDelay = (780 + i * 50) + 'ms';
+      const fx = (Math.random() * 2 - 1) * 280;
+      const fy = (Math.random() * -1) * 220 - 40;
+      const frot = (Math.random() * 2 - 1) * 460;
+      const jx = Math.random() * 18 - 9;
+      const jy = Math.random() * 18 - 9;
+      slot.style.setProperty('--fx', fx.toFixed(0) + 'px');
+      slot.style.setProperty('--fy', fy.toFixed(0) + 'px');
+      slot.style.setProperty('--frot', frot.toFixed(0) + 'deg');
+      slot.style.setProperty('--jx', jx.toFixed(0) + 'px');
+      slot.style.setProperty('--jy', jy.toFixed(0) + 'px');
+      slot.style.setProperty('--fdelay', (i * 25) + 'ms');
 
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'paper tilt-' + (i % 6);
+      btn.className = 'paper tilt-' + Math.floor(Math.random() * 10);
       btn.textContent = shortProjectName(project);
       btn.title = project;
       btn.addEventListener('click', () => {
