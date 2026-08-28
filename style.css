@@ -212,85 +212,156 @@ h1 {
   box-shadow: 0 6px 16px -6px rgba(149,27,129,0.55);
 }
 
-.radial-wrap {
-  min-height: 380px;
+.trend-wrap {
+  min-height: 320px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
 }
 
-.radial-placeholder {
+.trend-placeholder {
   color: var(--text-muted);
   font-size: 0.9rem;
+  text-align: center;
+  padding: 60px 0;
 }
 
-.radial-project-name {
+.trend-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.trend-project-name {
   font-weight: 700;
   color: var(--graphite);
   font-size: 1.05rem;
-  margin-bottom: 4px;
-  text-align: center;
 }
 @media (prefers-color-scheme: dark) {
-  .radial-project-name { color: var(--text-primary); }
+  .trend-project-name { color: var(--text-primary); }
 }
 
-.radial-svg {
-  width: min(420px, 100%);
+.trend-total {
+  white-space: nowrap;
+}
+.trend-total-value {
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--bilberry);
+  font-variant-numeric: tabular-nums;
+}
+.trend-total-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin-left: 6px;
+}
+
+.trend-chart-wrap {
+  position: relative;
+}
+
+.trend-svg {
+  width: 100%;
   height: auto;
   display: block;
-  margin: 0 auto;
 }
 
-.radial-grid {
-  fill: none;
+.trend-gridline {
   stroke: var(--gridline);
   stroke-width: 1;
 }
 
-.radial-spoke {
-  stroke-width: 9;
-  stroke-linecap: round;
-  transform-box: view-box;
-  transform: scale(0.05);
+.trend-area {
   opacity: 0;
-  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease-out;
+  transform: translateY(6px);
+  transform-box: view-box;
+  transition: opacity 0.6s ease 0.75s, transform 0.6s ease 0.75s;
 }
-.radial-svg.is-visible .radial-spoke {
+.trend-svg.is-visible .trend-area {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.trend-line {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: var(--line-length);
+  stroke-dashoffset: var(--line-length);
+  transition: stroke-dashoffset 1.15s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.trend-svg.is-visible .trend-line {
+  stroke-dashoffset: 0;
+}
+
+.trend-point {
+  fill: var(--surface-1);
+  stroke: var(--bilberry);
+  stroke-width: 2.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+.trend-svg.is-visible .trend-point {
   transform: scale(1);
   opacity: 1;
 }
 
-.radial-month-label {
-  fill: var(--text-muted);
-  font-size: 11px;
-  font-family: "Manrope", system-ui, sans-serif;
-  opacity: 0;
-  transition: opacity 0.5s ease 0.35s;
+.trend-hit {
+  fill: transparent;
+  cursor: pointer;
 }
-.radial-svg.is-visible .radial-month-label {
+
+.trend-crosshair {
+  stroke: var(--baseline);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.trend-crosshair.is-active {
   opacity: 1;
 }
 
-.radial-center-value {
-  fill: var(--bilberry);
-  font-size: 30px;
-  font-weight: 800;
-  font-family: "Manrope", system-ui, sans-serif;
-  opacity: 0;
-  transition: opacity 0.5s ease 0.15s;
-}
-.radial-center-sub {
+.trend-month-label {
   fill: var(--text-muted);
   font-size: 11px;
   font-family: "Manrope", system-ui, sans-serif;
   opacity: 0;
-  transition: opacity 0.5s ease 0.25s;
+  transition: opacity 0.5s ease 0.5s;
 }
-.radial-svg.is-visible .radial-center-value,
-.radial-svg.is-visible .radial-center-sub {
+.trend-svg.is-visible .trend-month-label {
   opacity: 1;
+}
+
+.trend-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 12px));
+  background: var(--graphite);
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  box-shadow: 0 8px 20px -8px rgba(0,0,0,0.4);
+  z-index: 3;
+}
+.trend-tooltip.is-active {
+  opacity: 1;
+}
+.trend-tooltip b {
+  color: #ffffff;
 }
 
 .panel {

@@ -40,7 +40,7 @@ const els = {
   qyLegend: document.getElementById('qyLegend'),
   yearTabs: document.getElementById('yearTabs'),
   projectPicker: document.getElementById('projectPicker'),
-  radialWrap: document.getElementById('radialWrap'),
+  trendWrap: document.getElementById('trendWrap'),
   dataTable: document.getElementById('dataTable'),
   dataTableBody: document.getElementById('dataTableBody'),
 };
@@ -281,7 +281,7 @@ function renderProjectPicker() {
     btn.addEventListener('click', () => {
       state.selectedProject = (state.selectedProject === project) ? null : project;
       renderProjectPicker();
-      renderRadial();
+      renderTrend();
     });
     els.projectPicker.appendChild(btn);
   }
@@ -299,7 +299,7 @@ function renderYearTabs() {
     btn.addEventListener('click', () => {
       state.selectedYear = year;
       renderYearTabs();
-      renderRadial();
+      renderTrend();
     });
     els.yearTabs.appendChild(btn);
   }
@@ -317,10 +317,21 @@ function animateCount(el, target, duration) {
   requestAnimationFrame(tick);
 }
 
-function renderRadial() {
-  const wrap = els.radialWrap;
+function buildSmoothPath(points) {
+  let d = `M ${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const midX = (prev.x + cur.x) / 2;
+    d += ` C ${midX},${prev.y} ${midX},${cur.y} ${cur.x},${cur.y}`;
+  }
+  return d;
+}
+
+function renderTrend() {
+  const wrap = els.trendWrap;
   if (!state.selectedProject || !state.selectedYear) {
-    wrap.innerHTML = '<p class="radial-placeholder">Выберите проект, чтобы увидеть динамику по месяцам</p>';
+    wrap.innerHTML = '<p class="trend-placeholder">Выберите проект, чтобы увидеть динамику по месяцам</p>';
     return;
   }
 
@@ -329,84 +340,148 @@ function renderRadial() {
   const max = Math.max(...values, 0) || 1;
   const total = values.reduce((a, b) => a + b, 0);
 
-  const size = 340;
-  const cx = size / 2, cy = size / 2;
-  const minR = 22, maxR = 130, labelR = 152;
+  const W = 640, H = 220;
+  const padX = 22, padTop = 20, padBottom = 30;
+  const plotW = W - padX * 2;
+  const plotH = H - padTop - padBottom;
+  const baselineY = H - padBottom;
   const svgNS = 'http://www.w3.org/2000/svg';
 
+  const points = values.map((val, i) => ({
+    x: padX + i * (plotW / 11),
+    y: padTop + (1 - val / max) * plotH,
+    val,
+  }));
+
   const svg = document.createElementNS(svgNS, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
-  svg.setAttribute('class', 'radial-svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('class', 'trend-svg');
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', metricLabel(metricKey) + ' по месяцам, ' + state.selectedProject + ', ' + state.selectedYear);
 
-  for (const frac of [0.33, 0.66, 1]) {
-    const c = document.createElementNS(svgNS, 'circle');
-    c.setAttribute('cx', cx);
-    c.setAttribute('cy', cy);
-    c.setAttribute('r', minR + (maxR - minR) * frac);
-    c.setAttribute('class', 'radial-grid');
-    svg.appendChild(c);
-  }
+  const defs = document.createElementNS(svgNS, 'defs');
+  defs.innerHTML = `
+    <linearGradient id="trendLineGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#831f82"/>
+      <stop offset="60%" stop-color="#c7017f"/>
+      <stop offset="100%" stop-color="#e30613"/>
+    </linearGradient>
+    <linearGradient id="trendAreaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#951b81" stop-opacity="0.30"/>
+      <stop offset="100%" stop-color="#951b81" stop-opacity="0"/>
+    </linearGradient>
+  `;
+  svg.appendChild(defs);
 
-  for (let i = 0; i < 12; i++) {
-    const angle = (-90 + i * 30) * Math.PI / 180;
-    const val = values[i];
-    const r = val > 0 ? minR + (maxR - minR) * (val / max) : minR * 0.4;
-    const x2 = cx + r * Math.cos(angle);
-    const y2 = cy + r * Math.sin(angle);
-    const t = val / max;
+  const baseline = document.createElementNS(svgNS, 'line');
+  baseline.setAttribute('x1', padX);
+  baseline.setAttribute('y1', baselineY);
+  baseline.setAttribute('x2', W - padX);
+  baseline.setAttribute('y2', baselineY);
+  baseline.setAttribute('class', 'trend-gridline');
+  svg.appendChild(baseline);
 
-    const line = document.createElementNS(svgNS, 'line');
-    line.setAttribute('x1', cx);
-    line.setAttribute('y1', cy);
-    line.setAttribute('x2', x2);
-    line.setAttribute('y2', y2);
-    line.setAttribute('class', 'radial-spoke');
-    line.style.stroke = val > 0 ? sequentialColor(0.35 + t * 0.65) : 'var(--gridline)';
-    line.style.transformOrigin = `${cx}px ${cy}px`;
-    line.style.transitionDelay = (i * 45) + 'ms';
-    svg.appendChild(line);
+  const linePath = buildSmoothPath(points);
+  const areaPath = linePath +
+    ` L ${points[points.length - 1].x},${baselineY} L ${points[0].x},${baselineY} Z`;
 
-    const lx = cx + labelR * Math.cos(angle);
-    const ly = cy + labelR * Math.sin(angle);
-    const text = document.createElementNS(svgNS, 'text');
-    text.setAttribute('x', lx);
-    text.setAttribute('y', ly);
-    text.setAttribute('class', 'radial-month-label');
-    text.setAttribute('text-anchor', 'middle');
-    text.setAttribute('dominant-baseline', 'middle');
-    text.textContent = MONTH_SHORT[i];
-    svg.appendChild(text);
-  }
+  const area = document.createElementNS(svgNS, 'path');
+  area.setAttribute('d', areaPath);
+  area.setAttribute('fill', 'url(#trendAreaGrad)');
+  area.setAttribute('class', 'trend-area');
+  svg.appendChild(area);
 
-  const centerValue = document.createElementNS(svgNS, 'text');
-  centerValue.setAttribute('x', cx);
-  centerValue.setAttribute('y', cy - 8);
-  centerValue.setAttribute('text-anchor', 'middle');
-  centerValue.setAttribute('class', 'radial-center-value');
-  centerValue.textContent = '0';
-  svg.appendChild(centerValue);
+  const line = document.createElementNS(svgNS, 'path');
+  line.setAttribute('d', linePath);
+  line.setAttribute('stroke', 'url(#trendLineGrad)');
+  line.setAttribute('class', 'trend-line');
+  svg.appendChild(line);
 
-  const centerSub = document.createElementNS(svgNS, 'text');
-  centerSub.setAttribute('x', cx);
-  centerSub.setAttribute('y', cy + 16);
-  centerSub.setAttribute('text-anchor', 'middle');
-  centerSub.setAttribute('class', 'radial-center-sub');
-  centerSub.textContent = metricLabel(metricKey) + ', ' + state.selectedYear;
-  svg.appendChild(centerSub);
+  const crosshair = document.createElementNS(svgNS, 'line');
+  crosshair.setAttribute('class', 'trend-crosshair');
+  crosshair.setAttribute('y2', baselineY);
+  svg.appendChild(crosshair);
+
+  const tooltip = document.createElement('div');
+  tooltip.className = 'trend-tooltip';
+
+  points.forEach((p, i) => {
+    const label = document.createElementNS(svgNS, 'text');
+    label.setAttribute('x', p.x);
+    label.setAttribute('y', H - 8);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('class', 'trend-month-label');
+    label.textContent = MONTH_SHORT[i];
+    svg.appendChild(label);
+
+    const point = document.createElementNS(svgNS, 'circle');
+    point.setAttribute('cx', p.x);
+    point.setAttribute('cy', p.y);
+    point.setAttribute('r', 4.5);
+    point.setAttribute('class', 'trend-point');
+    point.style.transitionDelay = (900 + i * 40) + 'ms';
+    svg.appendChild(point);
+
+    const hit = document.createElementNS(svgNS, 'circle');
+    hit.setAttribute('cx', p.x);
+    hit.setAttribute('cy', p.y);
+    hit.setAttribute('r', 14);
+    hit.setAttribute('class', 'trend-hit');
+    hit.addEventListener('pointerenter', () => {
+      crosshair.setAttribute('x1', p.x);
+      crosshair.setAttribute('x2', p.x);
+      crosshair.setAttribute('y1', p.y);
+      crosshair.classList.add('is-active');
+      const svgRect = svg.getBoundingClientRect();
+      const wrapRect = wrap.getBoundingClientRect();
+      const scaleX = svgRect.width / W;
+      const scaleY = svgRect.height / H;
+      tooltip.style.left = (svgRect.left - wrapRect.left + p.x * scaleX) + 'px';
+      tooltip.style.top = (svgRect.top - wrapRect.top + p.y * scaleY) + 'px';
+      tooltip.innerHTML = `${MONTH_SHORT[i]} ${state.selectedYear}: <b>${formatNumber(p.val)}</b>`;
+      tooltip.classList.add('is-active');
+    });
+    hit.addEventListener('pointerleave', () => {
+      crosshair.classList.remove('is-active');
+      tooltip.classList.remove('is-active');
+    });
+    svg.appendChild(hit);
+  });
 
   wrap.innerHTML = '';
-  const title = document.createElement('div');
-  title.className = 'radial-project-name';
-  title.textContent = state.selectedProject;
-  wrap.appendChild(title);
-  wrap.appendChild(svg);
+
+  const header = document.createElement('div');
+  header.className = 'trend-header';
+  const name = document.createElement('div');
+  name.className = 'trend-project-name';
+  name.textContent = state.selectedProject;
+  const totalWrap = document.createElement('div');
+  totalWrap.className = 'trend-total';
+  const totalValue = document.createElement('span');
+  totalValue.className = 'trend-total-value';
+  totalValue.textContent = '0';
+  const totalLabel = document.createElement('span');
+  totalLabel.className = 'trend-total-label';
+  totalLabel.textContent = 'итого за ' + state.selectedYear + ', ' + metricLabel(metricKey);
+  totalWrap.appendChild(totalValue);
+  totalWrap.appendChild(totalLabel);
+  header.appendChild(name);
+  header.appendChild(totalWrap);
+  wrap.appendChild(header);
+
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'trend-chart-wrap';
+  chartWrap.appendChild(svg);
+  chartWrap.appendChild(tooltip);
+  wrap.appendChild(chartWrap);
+
+  const pathLength = line.getTotalLength();
+  line.style.setProperty('--line-length', pathLength);
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => svg.classList.add('is-visible'));
   });
-  animateCount(centerValue, total, 700);
+  animateCount(totalValue, total, 900);
 }
 
 function renderDataTable() {
@@ -473,7 +548,7 @@ async function loadData({ silent } = {}) {
     }
     els.content.hidden = false;
     renderYearTabs();
-    renderRadial();
+    renderTrend();
     renderAll();
     setStatus('Обновлено: ' + new Date().toLocaleTimeString('ru-RU'));
   } catch (err) {
@@ -495,7 +570,7 @@ els.metricToggle.addEventListener('click', (e) => {
   });
   renderHeatmap();
   renderQuarterYear();
-  renderRadial();
+  renderTrend();
 });
 
 els.searchInput.addEventListener('input', (e) => {
