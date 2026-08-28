@@ -265,6 +265,86 @@ h1 {
   height: 60px;
   position: relative;
 }
+
+.briefcase-case {
+  position: absolute;
+  inset: 0;
+  animation: briefcaseBurst 1s cubic-bezier(0.32, 0, 0.28, 1) forwards;
+}
+
+@keyframes briefcaseBurst {
+  0%   { transform: scale(1) rotate(0deg); }
+  12%  { transform: scale(1.03) rotate(-1deg); }
+  24%  { transform: scale(0.99) rotate(1deg); }
+  38%  { transform: scale(1.06) rotate(-1.5deg); }
+  50%  { transform: scale(0.98) rotate(1.5deg); }
+  62%  { transform: scale(1.1) rotate(-2deg); }
+  70%  { transform: scale(1.03) rotate(2deg); }
+  78%  { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+.briefcase-flash {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160px;
+  height: 160px;
+  margin: -80px 0 0 -80px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 0%, #e30613 25%, #c7017f 50%, transparent 72%);
+  opacity: 0;
+  transform: scale(0.2);
+  animation: flashBurst 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+@keyframes flashBurst {
+  0%, 68% { opacity: 0; transform: scale(0.2); }
+  76%     { opacity: 1; transform: scale(1); }
+  100%    { opacity: 0; transform: scale(2); }
+}
+
+.briefcase-sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.spark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(0deg) translateX(0) scale(1);
+  animation: sparkBurst 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.78s forwards;
+}
+.spark:nth-child(1)  { --ang: 0deg; }
+.spark:nth-child(2)  { --ang: 30deg; }
+.spark:nth-child(3)  { --ang: 60deg; }
+.spark:nth-child(4)  { --ang: 90deg; }
+.spark:nth-child(5)  { --ang: 120deg; }
+.spark:nth-child(6)  { --ang: 150deg; }
+.spark:nth-child(7)  { --ang: 180deg; }
+.spark:nth-child(8)  { --ang: 210deg; }
+.spark:nth-child(9)  { --ang: 240deg; }
+.spark:nth-child(10) { --ang: 270deg; }
+.spark:nth-child(11) { --ang: 300deg; }
+.spark:nth-child(12) { --ang: 330deg; }
+@keyframes sparkBurst {
+  0%   { opacity: 0; transform: translate(-50%, -50%) rotate(var(--ang)) translateX(0) scale(1); }
+  15%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--ang)) translateX(72px) scale(0.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .briefcase-case, .briefcase-flash, .spark {
+    animation: none !important;
+  }
+  .briefcase-flash, .spark { opacity: 0 !important; }
+}
 .briefcase-handle {
   position: absolute;
   top: -12px;

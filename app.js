@@ -315,7 +315,7 @@ function renderBriefcase() {
       const slot = document.createElement('div');
       slot.className = 'paper-slot';
       slot.dataset.project = project;
-      slot.style.transitionDelay = (i * 55) + 'ms';
+      slot.style.transitionDelay = (780 + i * 50) + 'ms';
 
       const btn = document.createElement('button');
       btn.type = 'button';
