@@ -174,6 +174,125 @@ h1 {
   min-width: 220px;
 }
 
+.segmented-sm {
+  padding: 2px;
+}
+.segmented-sm .seg-btn {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
+.project-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.project-pill {
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.project-pill:hover {
+  border-color: var(--bilberry);
+  color: var(--bilberry);
+}
+.project-pill.is-active {
+  background: var(--brand-gradient);
+  border-color: transparent;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -6px rgba(149,27,129,0.55);
+}
+
+.radial-wrap {
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.radial-placeholder {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.radial-project-name {
+  font-weight: 700;
+  color: var(--graphite);
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+  text-align: center;
+}
+@media (prefers-color-scheme: dark) {
+  .radial-project-name { color: var(--text-primary); }
+}
+
+.radial-svg {
+  width: min(420px, 100%);
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+.radial-grid {
+  fill: none;
+  stroke: var(--gridline);
+  stroke-width: 1;
+}
+
+.radial-spoke {
+  stroke-width: 9;
+  stroke-linecap: round;
+  transform-box: view-box;
+  transform: scale(0.05);
+  opacity: 0;
+  transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease-out;
+}
+.radial-svg.is-visible .radial-spoke {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.radial-month-label {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-family: "Manrope", system-ui, sans-serif;
+  opacity: 0;
+  transition: opacity 0.5s ease 0.35s;
+}
+.radial-svg.is-visible .radial-month-label {
+  opacity: 1;
+}
+
+.radial-center-value {
+  fill: var(--bilberry);
+  font-size: 30px;
+  font-weight: 800;
+  font-family: "Manrope", system-ui, sans-serif;
+  opacity: 0;
+  transition: opacity 0.5s ease 0.15s;
+}
+.radial-center-sub {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-family: "Manrope", system-ui, sans-serif;
+  opacity: 0;
+  transition: opacity 0.5s ease 0.25s;
+}
+.radial-svg.is-visible .radial-center-value,
+.radial-svg.is-visible .radial-center-sub {
+  opacity: 1;
+}
+
 .panel {
   background: var(--surface-1);
   border: 1px solid var(--border);

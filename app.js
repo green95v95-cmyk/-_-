@@ -17,7 +17,12 @@ const state = {
   qyValues: new Map(),      // "project||periodKey" -> {area, labor}
   sort: { key: 'project', dir: 1 },
   search: '',
+  years: [],          // distinct years present, ascending
+  selectedYear: null,
+  selectedProject: null,
 };
+
+const MONTH_SHORT = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
 const els = {
   status: document.getElementById('status'),
@@ -33,6 +38,9 @@ const els = {
   qyTitle: document.getElementById('qyTitle'),
   qyTable: document.getElementById('qyTable'),
   qyLegend: document.getElementById('qyLegend'),
+  yearTabs: document.getElementById('yearTabs'),
+  projectPicker: document.getElementById('projectPicker'),
+  radialWrap: document.getElementById('radialWrap'),
   dataTable: document.getElementById('dataTable'),
   dataTableBody: document.getElementById('dataTableBody'),
 };
@@ -129,6 +137,26 @@ function buildQuarterYearAggregation(records) {
   }
 
   return { periods, values };
+}
+
+function shortProjectName(project) {
+  return project.replace(/^УПД:\s*/, '');
+}
+
+function computeYears(months) {
+  const years = new Set();
+  for (const m of months) years.add(Number(m.key.slice(0, 4)));
+  return Array.from(years).sort((a, b) => a - b);
+}
+
+function monthValuesForProjectYear(project, year, metricKey) {
+  const vals = [];
+  for (let m = 1; m <= 12; m++) {
+    const key = project + '||' + year + '-' + String(m).padStart(2, '0');
+    const entry = state.monthValues.get(key);
+    vals.push(entry ? entry[metricKey] : 0);
+  }
+  return vals;
 }
 
 function formatNumber(n) {
@@ -240,6 +268,147 @@ function renderQuarterYear() {
   renderGrid(els.qyTable, els.qyLegend, state.qyPeriods, state.qyValues, metricKey, filteredProjects);
 }
 
+function renderProjectPicker() {
+  const search = state.search.toLowerCase();
+  els.projectPicker.innerHTML = '';
+  for (const project of state.projects) {
+    if (!project.toLowerCase().includes(search)) continue;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'project-pill' + (project === state.selectedProject ? ' is-active' : '');
+    btn.textContent = shortProjectName(project);
+    btn.title = project;
+    btn.addEventListener('click', () => {
+      state.selectedProject = (state.selectedProject === project) ? null : project;
+      renderProjectPicker();
+      renderRadial();
+    });
+    els.projectPicker.appendChild(btn);
+  }
+}
+
+function renderYearTabs() {
+  els.yearTabs.innerHTML = '';
+  for (const year of state.years) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'seg-btn' + (year === state.selectedYear ? ' is-active' : '');
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', year === state.selectedYear ? 'true' : 'false');
+    btn.textContent = String(year);
+    btn.addEventListener('click', () => {
+      state.selectedYear = year;
+      renderYearTabs();
+      renderRadial();
+    });
+    els.yearTabs.appendChild(btn);
+  }
+}
+
+function animateCount(el, target, duration) {
+  const start = performance.now();
+  function tick(now) {
+    const p = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = formatNumber(target * eased);
+    if (p < 1) requestAnimationFrame(tick);
+    else el.textContent = formatNumber(target);
+  }
+  requestAnimationFrame(tick);
+}
+
+function renderRadial() {
+  const wrap = els.radialWrap;
+  if (!state.selectedProject || !state.selectedYear) {
+    wrap.innerHTML = '<p class="radial-placeholder">Выберите проект, чтобы увидеть динамику по месяцам</p>';
+    return;
+  }
+
+  const metricKey = state.metric;
+  const values = monthValuesForProjectYear(state.selectedProject, state.selectedYear, metricKey);
+  const max = Math.max(...values, 0) || 1;
+  const total = values.reduce((a, b) => a + b, 0);
+
+  const size = 340;
+  const cx = size / 2, cy = size / 2;
+  const minR = 22, maxR = 130, labelR = 152;
+  const svgNS = 'http://www.w3.org/2000/svg';
+
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  svg.setAttribute('class', 'radial-svg');
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', metricLabel(metricKey) + ' по месяцам, ' + state.selectedProject + ', ' + state.selectedYear);
+
+  for (const frac of [0.33, 0.66, 1]) {
+    const c = document.createElementNS(svgNS, 'circle');
+    c.setAttribute('cx', cx);
+    c.setAttribute('cy', cy);
+    c.setAttribute('r', minR + (maxR - minR) * frac);
+    c.setAttribute('class', 'radial-grid');
+    svg.appendChild(c);
+  }
+
+  for (let i = 0; i < 12; i++) {
+    const angle = (-90 + i * 30) * Math.PI / 180;
+    const val = values[i];
+    const r = val > 0 ? minR + (maxR - minR) * (val / max) : minR * 0.4;
+    const x2 = cx + r * Math.cos(angle);
+    const y2 = cy + r * Math.sin(angle);
+    const t = val / max;
+
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', cx);
+    line.setAttribute('y1', cy);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('class', 'radial-spoke');
+    line.style.stroke = val > 0 ? sequentialColor(0.35 + t * 0.65) : 'var(--gridline)';
+    line.style.transformOrigin = `${cx}px ${cy}px`;
+    line.style.transitionDelay = (i * 45) + 'ms';
+    svg.appendChild(line);
+
+    const lx = cx + labelR * Math.cos(angle);
+    const ly = cy + labelR * Math.sin(angle);
+    const text = document.createElementNS(svgNS, 'text');
+    text.setAttribute('x', lx);
+    text.setAttribute('y', ly);
+    text.setAttribute('class', 'radial-month-label');
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'middle');
+    text.textContent = MONTH_SHORT[i];
+    svg.appendChild(text);
+  }
+
+  const centerValue = document.createElementNS(svgNS, 'text');
+  centerValue.setAttribute('x', cx);
+  centerValue.setAttribute('y', cy - 8);
+  centerValue.setAttribute('text-anchor', 'middle');
+  centerValue.setAttribute('class', 'radial-center-value');
+  centerValue.textContent = '0';
+  svg.appendChild(centerValue);
+
+  const centerSub = document.createElementNS(svgNS, 'text');
+  centerSub.setAttribute('x', cx);
+  centerSub.setAttribute('y', cy + 16);
+  centerSub.setAttribute('text-anchor', 'middle');
+  centerSub.setAttribute('class', 'radial-center-sub');
+  centerSub.textContent = metricLabel(metricKey) + ', ' + state.selectedYear;
+  svg.appendChild(centerSub);
+
+  wrap.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'radial-project-name';
+  title.textContent = state.selectedProject;
+  wrap.appendChild(title);
+  wrap.appendChild(svg);
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => svg.classList.add('is-visible'));
+  });
+  animateCount(centerValue, total, 700);
+}
+
 function renderDataTable() {
   const search = state.search.toLowerCase();
   let rows = state.records.filter(r => r.project.toLowerCase().includes(search));
@@ -274,6 +443,7 @@ function renderDataTable() {
 function renderAll() {
   renderHeatmap();
   renderQuarterYear();
+  renderProjectPicker();
   renderDataTable();
 }
 
@@ -294,7 +464,16 @@ async function loadData({ silent } = {}) {
     state.monthValues = monthValues;
     state.qyPeriods = periods;
     state.qyValues = values;
+    state.years = computeYears(months);
+    if (state.selectedYear === null || !state.years.includes(state.selectedYear)) {
+      state.selectedYear = state.years[0] || null;
+    }
+    if (state.selectedProject && !projects.includes(state.selectedProject)) {
+      state.selectedProject = null;
+    }
     els.content.hidden = false;
+    renderYearTabs();
+    renderRadial();
     renderAll();
     setStatus('Обновлено: ' + new Date().toLocaleTimeString('ru-RU'));
   } catch (err) {
@@ -316,6 +495,7 @@ els.metricToggle.addEventListener('click', (e) => {
   });
   renderHeatmap();
   renderQuarterYear();
+  renderRadial();
 });
 
 els.searchInput.addEventListener('input', (e) => {
