@@ -269,6 +269,8 @@ h1 {
 .briefcase-case {
   position: absolute;
   inset: 0;
+}
+.briefcase.is-armed .briefcase-case {
   animation: briefcaseBurst 1s cubic-bezier(0.32, 0, 0.28, 1) forwards;
 }
 
@@ -295,8 +297,10 @@ h1 {
   background: radial-gradient(circle, #ffffff 0%, #e30613 25%, #c7017f 50%, transparent 72%);
   opacity: 0;
   transform: scale(0.2);
-  animation: flashBurst 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   pointer-events: none;
+}
+.briefcase.is-armed .briefcase-flash {
+  animation: flashBurst 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes flashBurst {
   0%, 68% { opacity: 0; transform: scale(0.2); }
@@ -319,6 +323,8 @@ h1 {
   background: var(--brand-gradient);
   opacity: 0;
   transform: translate(-50%, -50%) rotate(0deg) translateX(0) scale(1);
+}
+.briefcase.is-armed .spark {
   animation: sparkBurst 0.85s cubic-bezier(0.16, 1, 0.3, 1) 0.78s forwards;
 }
 .spark:nth-child(1)  { --ang: 0deg; }

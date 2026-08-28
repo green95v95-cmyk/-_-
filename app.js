@@ -39,6 +39,7 @@ const els = {
   qyTable: document.getElementById('qyTable'),
   qyLegend: document.getElementById('qyLegend'),
   yearTabs: document.getElementById('yearTabs'),
+  briefcase: document.getElementById('briefcase'),
   papersScroll: document.getElementById('papersScroll'),
   trendWrap: document.getElementById('trendWrap'),
   dataTable: document.getElementById('dataTable'),
@@ -50,14 +51,31 @@ const SPLASH_FAILSAFE_MS = 6000;
 let splashMinElapsed = false;
 let splashDataReady = false;
 
+let splashGone = false;
+let pendingBriefcaseArm = false;
+
+function armBriefcase() {
+  if (!splashGone) { pendingBriefcaseArm = true; return; }
+  if (els.briefcase) els.briefcase.classList.add('is-armed');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => els.papersScroll.classList.add('is-open'));
+  });
+}
+
 function maybeHideSplash() {
   if (!splashMinElapsed || !splashDataReady) return;
   const splash = document.getElementById('splash');
-  if (!splash) return;
+  if (!splash) {
+    splashGone = true;
+    if (pendingBriefcaseArm) { pendingBriefcaseArm = false; armBriefcase(); }
+    return;
+  }
   splash.classList.add('is-leaving');
   setTimeout(() => {
     splash.remove();
     document.body.style.overflow = '';
+    splashGone = true;
+    if (pendingBriefcaseArm) { pendingBriefcaseArm = false; armBriefcase(); }
   }, 1000);
 }
 
@@ -333,10 +351,7 @@ function renderBriefcase() {
     });
 
     scroll.dataset.builtFor = key;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => scroll.classList.add('is-open'));
-    });
+    armBriefcase();
   }
 
   updateBriefcaseSelection();
