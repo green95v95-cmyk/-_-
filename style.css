@@ -47,6 +47,76 @@ body {
   font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(120% 140% at 50% 30%, #343c4d 0%, var(--graphite) 60%);
+  transition: transform 0.9s cubic-bezier(0.76, 0, 0.24, 1);
+}
+.splash.is-leaving {
+  transform: translateY(-102%);
+}
+
+.splash-inner {
+  text-align: center;
+  padding: 0 24px;
+}
+
+.splash-title {
+  margin: 0;
+  font-family: "Manrope", system-ui, sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.7rem, 5.5vw, 3.6rem);
+  letter-spacing: -0.01em;
+  background: var(--brand-gradient);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 0;
+  animation:
+    splashRise 0.7s ease forwards,
+    splashShine 1.7s ease-in-out 0.1s forwards;
+}
+
+.splash-underline {
+  width: 0;
+  height: 3px;
+  margin: 20px auto 0;
+  border-radius: 2px;
+  background: var(--brand-gradient);
+  animation: splashUnderline 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.55s forwards;
+}
+
+@keyframes splashRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes splashShine {
+  from { background-position: -120% 0; }
+  to { background-position: 220% 0; }
+}
+
+@keyframes splashUnderline {
+  from { width: 0; }
+  to { width: 92px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash, .splash-title, .splash-underline {
+    animation: none !important;
+    transition: none !important;
+  }
+  .splash-title { opacity: 1; }
+  .splash-underline { width: 92px; }
+}
+
 .brandbar {
   background: var(--graphite);
   padding: 10px 20px;

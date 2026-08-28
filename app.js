@@ -45,6 +45,26 @@ const els = {
   dataTableBody: document.getElementById('dataTableBody'),
 };
 
+const SPLASH_MIN_MS = 1800;
+const SPLASH_FAILSAFE_MS = 6000;
+let splashMinElapsed = false;
+let splashDataReady = false;
+
+function maybeHideSplash() {
+  if (!splashMinElapsed || !splashDataReady) return;
+  const splash = document.getElementById('splash');
+  if (!splash) return;
+  splash.classList.add('is-leaving');
+  setTimeout(() => {
+    splash.remove();
+    document.body.style.overflow = '';
+  }, 1000);
+}
+
+document.body.style.overflow = 'hidden';
+setTimeout(() => { splashMinElapsed = true; maybeHideSplash(); }, SPLASH_MIN_MS);
+setTimeout(() => { splashDataReady = true; maybeHideSplash(); }, SPLASH_FAILSAFE_MS);
+
 function parseGvizDate(v) {
   const m = /Date\((\d+),(\d+),(\d+)/.exec(v || '');
   if (!m) return null;
@@ -556,6 +576,9 @@ async function loadData({ silent } = {}) {
     els.errorText.textContent = 'Не удалось загрузить данные из Google Таблиц: ' + err.message;
     els.errorBox.hidden = false;
     setStatus('Ошибка загрузки');
+  } finally {
+    splashDataReady = true;
+    maybeHideSplash();
   }
 }
 
