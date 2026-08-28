@@ -39,7 +39,7 @@ const els = {
   qyTable: document.getElementById('qyTable'),
   qyLegend: document.getElementById('qyLegend'),
   yearTabs: document.getElementById('yearTabs'),
-  projectPicker: document.getElementById('projectPicker'),
+  papersScroll: document.getElementById('papersScroll'),
   trendWrap: document.getElementById('trendWrap'),
   dataTable: document.getElementById('dataTable'),
   dataTableBody: document.getElementById('dataTableBody'),
@@ -288,23 +288,59 @@ function renderQuarterYear() {
   renderGrid(els.qyTable, els.qyLegend, state.qyPeriods, state.qyValues, metricKey, filteredProjects);
 }
 
-function renderProjectPicker() {
+function updateBriefcaseSelection() {
+  els.papersScroll.querySelectorAll('.paper-slot').forEach(slot => {
+    const btn = slot.querySelector('.paper');
+    btn.classList.toggle('is-active', slot.dataset.project === state.selectedProject);
+  });
+}
+
+function applyBriefcaseSearchFilter() {
   const search = state.search.toLowerCase();
-  els.projectPicker.innerHTML = '';
-  for (const project of state.projects) {
-    if (!project.toLowerCase().includes(search)) continue;
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'project-pill' + (project === state.selectedProject ? ' is-active' : '');
-    btn.textContent = shortProjectName(project);
-    btn.title = project;
-    btn.addEventListener('click', () => {
-      state.selectedProject = (state.selectedProject === project) ? null : project;
-      renderProjectPicker();
-      renderTrend();
+  els.papersScroll.querySelectorAll('.paper-slot').forEach(slot => {
+    const match = slot.dataset.project.toLowerCase().includes(search);
+    slot.classList.toggle('is-filtered-out', !match);
+  });
+}
+
+function renderBriefcase() {
+  const scroll = els.papersScroll;
+  const key = state.projects.join('|');
+
+  if (scroll.dataset.builtFor !== key) {
+    scroll.innerHTML = '';
+    scroll.classList.remove('is-open');
+
+    state.projects.forEach((project, i) => {
+      const slot = document.createElement('div');
+      slot.className = 'paper-slot';
+      slot.dataset.project = project;
+      slot.style.transitionDelay = (i * 55) + 'ms';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'paper tilt-' + (i % 6);
+      btn.textContent = shortProjectName(project);
+      btn.title = project;
+      btn.addEventListener('click', () => {
+        state.selectedProject = (state.selectedProject === project) ? null : project;
+        updateBriefcaseSelection();
+        renderTrend();
+      });
+
+      slot.appendChild(btn);
+      scroll.appendChild(slot);
     });
-    els.projectPicker.appendChild(btn);
+
+    scroll.dataset.builtFor = key;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scroll.classList.add('is-open'));
+    });
   }
+
+  updateBriefcaseSelection();
+  applyBriefcaseSearchFilter();
 }
 
 function renderYearTabs() {
@@ -538,7 +574,7 @@ function renderDataTable() {
 function renderAll() {
   renderHeatmap();
   renderQuarterYear();
-  renderProjectPicker();
+  renderBriefcase();
   renderDataTable();
 }
 
